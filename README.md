@@ -1,7 +1,7 @@
 # Thesis
 ## Config
-- create db schema using src/sql/dump_schema.sql
 - git clone https://github.com/trauma91/thesis.git
+- create db schema using src/sql/dump_schema.sql
 - install maven
 - mvn package
 
