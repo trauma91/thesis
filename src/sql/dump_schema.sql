@@ -50,12 +50,12 @@ CREATE TABLE IF NOT EXISTS `tweet_db`.`Tweets_has_Hashtags` (
   INDEX `fk_Hashtags_has_Tweets_Hashtags1_idx` (`hashtag_id` ASC),
   CONSTRAINT `fk_Hashtags_has_Tweets_Hashtags1`
     FOREIGN KEY (`hashtag_id`)
-    REFERENCES `mydb`.`Hashtags` (`id`)
+    REFERENCES `tweet_db`.`Hashtags` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Hashtags_has_Tweets_Tweets1`
     FOREIGN KEY (`tweet_id`)
-    REFERENCES `mydb`.`Tweets` (`id`)
+    REFERENCES `tweet_db`.`Tweets` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
