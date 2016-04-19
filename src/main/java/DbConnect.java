@@ -13,14 +13,17 @@ public class DbConnect {
     private ResultSet rs;
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "root";
-    private static final String DB_CONNECTION = "jdbc:mysql://localhost:3306/mydb";
+    private static final String DB_CONNECTION = "jdbc:mysql://localhost:3306/tweet_db";
     private static final String DB_DRIVER = "com.mysql.jdbc.Driver";
 
 
-    public DbConnect(){
+    public DbConnect(String DB_USER, String DB_PASSWORD){
         try {
             Class.forName(DB_DRIVER);
-            connection = DriverManager.getConnection(DB_CONNECTION, DB_USER, DB_PASSWORD);
+            if (DB_USER != null && DB_PASSWORD != null)
+                connection = DriverManager.getConnection(DB_CONNECTION, DB_USER, DB_PASSWORD);
+            else
+                connection = DriverManager.getConnection(DB_CONNECTION, this.DB_USER, this.DB_PASSWORD);
             System.out.println("Database connection established.");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

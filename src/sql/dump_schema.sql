@@ -5,20 +5,20 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 
 -- -----------------------------------------------------
--- Schema mydb
+-- Schema tweet_db
 -- -----------------------------------------------------
-DROP SCHEMA IF EXISTS `mydb` ;
+DROP SCHEMA IF EXISTS `tweet_db` ;
 
 -- -----------------------------------------------------
--- Schema mydb
+-- Schema tweet_db
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8 ;
-USE `mydb` ;
+CREATE SCHEMA IF NOT EXISTS `tweet_db` DEFAULT CHARACTER SET utf8 ;
+USE `tweet_db` ;
 
 -- -----------------------------------------------------
--- Table `mydb`.`Tweets`
+-- Table `tweet_db`.`Tweets`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Tweets` (
+CREATE TABLE IF NOT EXISTS `tweet_db`.`Tweets` (
   `id` BIGINT NOT NULL,
   `text` VARCHAR(200) NULL,
   `timestamp` TIMESTAMP NULL,
@@ -30,9 +30,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Hashtags`
+-- Table `tweet_db`.`Hashtags`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Hashtags` (
+CREATE TABLE IF NOT EXISTS `tweet_db`.`Hashtags` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `text` VARCHAR(45) NULL,
   PRIMARY KEY (`id`))
@@ -40,9 +40,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Tweets_has_Hashtags`
+-- Table `tweet_db`.`Tweets_has_Hashtags`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Tweets_has_Hashtags` (
+CREATE TABLE IF NOT EXISTS `tweet_db`.`Tweets_has_Hashtags` (
   `hashtag_id` INT NOT NULL,
   `tweet_id` BIGINT NOT NULL,
   PRIMARY KEY (`hashtag_id`, `tweet_id`),

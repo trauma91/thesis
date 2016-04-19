@@ -23,37 +23,47 @@ public class TwitterListener {
         return configurationBuilder;
     }
     public static void main(String[] args) throws TwitterException {
-        TwitterStream twitterStream;
-        twitterStream = new TwitterStreamFactory(authentication().build()).getInstance();
-        final DbConnect connection = new DbConnect();
-
-        StatusListener listener = new StatusListener() {
-            public void onStatus(Status status) {
-                connection.saveTweet(status);
-                System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
+        String DB_USER = null;
+        String DB_PASSWORD = null;
+        if (args.length != 2 && args.length != 0)
+            System.out.println("Error: specifying username and password for mysql user. Leave empty for the default setting root root");
+        else {
+            if (args.length == 2) {
+                DB_USER = args[0];
+                DB_PASSWORD = args[1];
             }
+            TwitterStream twitterStream;
+            twitterStream = new TwitterStreamFactory(authentication().build()).getInstance();
+            final DbConnect connection = new DbConnect(DB_USER, DB_PASSWORD);
 
-            public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
-                System.out.println("Got a status deletion notice id:" + statusDeletionNotice.getStatusId());
-            }
+            StatusListener listener = new StatusListener() {
+                public void onStatus(Status status) {
+                    connection.saveTweet(status);
+                    System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
+                }
 
-            public void onTrackLimitationNotice(int numberOfLimitedStatuses) {
-                System.out.println("Got track limitation notice:" + numberOfLimitedStatuses);
-            }
+                public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
+                    System.out.println("Got a status deletion notice id:" + statusDeletionNotice.getStatusId());
+                }
 
-            public void onScrubGeo(long userId, long upToStatusId) {
-                System.out.println("Got scrub_geo event userId:" + userId + " upToStatusId:" + upToStatusId);
-            }
+                public void onTrackLimitationNotice(int numberOfLimitedStatuses) {
+                    System.out.println("Got track limitation notice:" + numberOfLimitedStatuses);
+                }
 
-            public void onStallWarning(StallWarning warning) {
-                System.out.println("Got stall warning:" + warning);
-            }
+                public void onScrubGeo(long userId, long upToStatusId) {
+                    System.out.println("Got scrub_geo event userId:" + userId + " upToStatusId:" + upToStatusId);
+                }
 
-            public void onException(Exception ex) {
-                ex.printStackTrace();
-            }
-        };
-        twitterStream.addListener(listener);
-        twitterStream.sample("en");
+                public void onStallWarning(StallWarning warning) {
+                    System.out.println("Got stall warning:" + warning);
+                }
+
+                public void onException(Exception ex) {
+                    ex.printStackTrace();
+                }
+            };
+            twitterStream.addListener(listener);
+            twitterStream.sample("en");
+        }
     }
 }
