@@ -1,79 +1,107 @@
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
+import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import twitter4j.HashtagEntity;
 import twitter4j.Status;
 
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * Created by trauma on 26/04/16.
+ * Created by trauma on 29/04/16.
  */
 public class GraphDb {
-    private static final String DB_DRIVER = "org.neo4j.jdbc.Driver";
-    private static final String DB_CONNECTION = "jdbc:neo4j://localhost:7474";
-    private static final String DB_USER = "neo4j";
-    private static final String DB_PASSWORD = "root";
-    private Connection connection;
-    private PreparedStatement stm;
+    public GraphDatabaseService graphDb;
 
-    public GraphDb(){
+    public GraphDb() {
+        graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File("data"));
+        /*Transaction tx = graphDb.beginTx();
         try {
-            Class.forName(DB_DRIVER);
-            connection = DriverManager.getConnection(DB_CONNECTION, DB_USER, DB_PASSWORD);
-            System.out.println("Graph database connection established.");
-            //Create uniqueness constraints on tweet.id and hashtag.text
-            stm = connection.prepareStatement("CREATE CONSTRAINT ON (tweet:Tweet) ASSERT tweet.id IS UNIQUE " +
-                                              "CREATE CONSTRAINT ON (hashtag:Hashtags) ASSERT hashtag.text IS UNIQUE");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+            graphDb.schema()
+                    .constraintFor(DynamicLabel.label("Tweet"))
+                    .assertPropertyIsUnique("id")
+                    .create();
+            graphDb.schema()
+                    .constraintFor(DynamicLabel.label("Hashtag"))
+                    .assertPropertyIsUnique("text")
+                    .create();
+            tx.success();
+        } finally {
+            tx.close();
+        }*/
+        registerShutdownHook(graphDb);
     }
-    public void saveTweet(Status status){
-        String queryTweet = "MERGE (tweet:Tweet {id:{1}}) " +
-                       "SET tweet.text = {2} " +
-                       "SET tweet.author = {3} " +
-                       "SET tweet.timestamp = {4} " +
-                       "SET tweet.isRetweet = {5} " +
-                       "SET tweet.isAnswer = {6}";
 
+    public void saveTweet (Status status) {
+        Transaction tx = graphDb.beginTx();
+        Node tweet = null;
+        ResourceIterator<Node> resultIterator = null;
+        Map<String, Object> parameters = new HashMap();
+        //Query for saving new tweets
+        String queryTweet = "MERGE (t:Tweet {id: {id}, author: {author}, timestamp: {timestamp}, " +
+                            "text: {text}, isRetweet: {isRetweet}, isAnswer: {isAnswer}})" +
+                            "return t";
         try {
-            stm = connection.prepareStatement(queryTweet);
-            stm.setLong(1, status.getId());
-            stm.setString(2, status.getText());
-            stm.setLong(3, status.getUser().getId());
-            stm.setLong(4, status.getCreatedAt().getTime());
+            parameters.put("id", status.getId());
+            parameters.put("author", status.getUser().getId());
+            parameters.put("timestamp", status.getCreatedAt().getTime());
+            parameters.put("text", status.getText());
+            parameters.put("isRetweet", status.isRetweet());
 
-            if (status.isRetweet())
-                stm.setBoolean(5, true);
-            else
-                stm.setBoolean(5, false);
             //Check if it's an answer: if it is then set the isAnswer field to the previous status
             //Otherwise set it to 0
             if (status.getInReplyToStatusId() != -1)
-                stm.setLong(6, status.getInReplyToStatusId());
+                parameters.put("isAnswer", status.getInReplyToStatusId());
             else
-                stm.setLong(6, 0);
-            stm.executeUpdate();
-             //Create nodes for hashtags and relationships between hashtags and tweet
-            String queryHash = "MATCH (tweet:Tweet {id:{1}}) " +
-                    "MERGE (tag:Hashtags {text:{2}}) " +
-                    "MERGE (tag)-[:Tags]->(tweet)";
-            HashtagEntity[] hashtags = status.getHashtagEntities();
-            if (hashtags != null){
-                for (HashtagEntity hashtag: hashtags) {
-                    stm.clearParameters();
-                    stm = connection.prepareStatement(queryHash);
-                    stm.setLong(1, status.getId());
-                    stm.setString(2, hashtag.getText());
-                    stm.executeUpdate();
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+                parameters.put("isAnswer", 0);
+            //Save tweet
+            resultIterator = graphDb.execute(queryTweet,parameters).columnAs("t");
+            tweet = resultIterator.next();
+            saveHashtag(status, tweet);
+
+            tx.success();
+        } finally {
+            tx.close();
         }
     }
+    private void saveHashtag(Status status, Node tweet) {
+        //Query for saving hashtags
+        String queryHash = "MERGE (t:Hashtag {text: {text}}) return t";
+        Map<String, Object> parameters = new HashMap();
+        Node tag = null;
+        ResourceIterator<Node> resultIterator = null;
 
+        HashtagEntity[] hashtags = status.getHashtagEntities();
+        Iterable<Relationship> hashToTweetRelationships;
+        Relationship temp = null;
+        if (hashtags != null){
+            for (HashtagEntity hashtag: hashtags) {
+                parameters.clear();
+                parameters.put("text", hashtag.getText());
+                resultIterator = graphDb.execute(queryHash, parameters).columnAs("t");
+                tag = null;
+                tag = resultIterator.next();
+
+                //Insert relationship among tweets that have at least a hashtag in common
+                hashToTweetRelationships = null;
+                hashToTweetRelationships = tag.getRelationships(Direction.OUTGOING, RelType.TAGS);
+                if (hashToTweetRelationships != null) {
+                    for (Relationship relationship : hashToTweetRelationships) {
+                        temp = tweet.createRelationshipTo(relationship.getEndNode(), RelType.SAME_HASHTAG);
+                        temp.setProperty("hashtag", tag.getProperty("text"));
+                    }
+                }
+                //finally insert relationship between current hashtag and current tweet (for each hashtag)
+                tag.createRelationshipTo(tweet, RelType.TAGS);
+            }
+        }
+    }
+    private void registerShutdownHook(final GraphDatabaseService graphDb) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                graphDb.shutdown();
+            }
+        });
+    }
 }
