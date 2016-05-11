@@ -39,8 +39,8 @@ public class TwitterListener {
 
             StatusListener listener = new StatusListener() {
                 public void onStatus(Status status) {
-                    //connection.saveTweet(status);
-                    graph.saveTweet(status);
+                    connection.saveTweet(status);
+                    //graph.saveTweet(status);
                     System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
                 }
 

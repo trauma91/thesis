@@ -5,5 +5,5 @@ import org.neo4j.graphdb.RelationshipType;
  */
 public enum RelType implements RelationshipType {
     TAGS,
-    SAME_HASHTAG
+    APPEAR_TOGETHER
 }

@@ -72,8 +72,6 @@ public class GraphDb {
         ResourceIterator<Node> resultIterator = null;
 
         HashtagEntity[] hashtags = status.getHashtagEntities();
-        Iterable<Relationship> hashToTweetRelationships;
-        Relationship temp = null;
         if (hashtags != null){
             for (HashtagEntity hashtag: hashtags) {
                 parameters.clear();
@@ -81,7 +79,7 @@ public class GraphDb {
                 resultIterator = graphDb.execute(queryHash, parameters).columnAs("t");
                 tag = null;
                 tag = resultIterator.next();
-
+                /*
                 //Insert relationship among tweets that have at least a hashtag in common
                 hashToTweetRelationships = null;
                 hashToTweetRelationships = tag.getRelationships(Direction.OUTGOING, RelType.TAGS);
@@ -89,10 +87,30 @@ public class GraphDb {
                     for (Relationship relationship : hashToTweetRelationships) {
                         temp = tweet.createRelationshipTo(relationship.getEndNode(), RelType.SAME_HASHTAG);
                         temp.setProperty("hashtag", tag.getProperty("text"));
+                        relationship.delete();
                     }
                 }
+                */
                 //finally insert relationship between current hashtag and current tweet (for each hashtag)
                 tag.createRelationshipTo(tweet, RelType.TAGS);
+            }
+        }
+        Relationship currentRel = null;
+        for(int i = 0; i < hashtags.length - 1; i++){
+            for (int j = i + 1; j < hashtags.length; j++){
+                parameters.clear();
+                parameters.put("text1", hashtags[i].getText());
+                parameters.put("text2", hashtags[j].getText());
+                resultIterator = graphDb.execute("MATCH (t1:Hashtag {text: {text1}}) - [r:APPEAR_TOGETHER] - (t2: Hashtag {text: {text2}}) return r", parameters)
+                                .columnAs("r");
+                if (resultIterator.hasNext()){
+                    currentRel = (Relationship) resultIterator.next();
+                    currentRel.setProperty("count", (Integer) currentRel.getProperty("count") + 1);
+                } else {
+                    tag = graphDb.findNode(DynamicLabel.label("Hashtag"),"text", hashtags[i].getText());
+                    currentRel = tag.createRelationshipTo(graphDb.findNode(DynamicLabel.label("Hashtag"),"text", hashtags[j].getText()), RelType.APPEAR_TOGETHER);
+                    currentRel.setProperty("count", 1);
+                }
             }
         }
     }
@@ -104,4 +122,5 @@ public class GraphDb {
             }
         });
     }
+
 }
