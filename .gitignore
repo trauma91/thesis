@@ -14,4 +14,9 @@ hs_err_pid*
 target/
 *.DS_STORE
 .idea/
+
+# graphDb
 data/
+
+# transactions
+*.csv
