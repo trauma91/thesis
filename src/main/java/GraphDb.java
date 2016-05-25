@@ -15,20 +15,6 @@ public class GraphDb {
 
     public GraphDb() {
         graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File("data"));
-        /*Transaction tx = graphDb.beginTx();
-        try {
-            graphDb.schema()
-                    .constraintFor(DynamicLabel.label("Tweet"))
-                    .assertPropertyIsUnique("id")
-                    .create();
-            graphDb.schema()
-                    .constraintFor(DynamicLabel.label("Hashtag"))
-                    .assertPropertyIsUnique("text")
-                    .create();
-            tx.success();
-        } finally {
-            tx.close();
-        }*/
         registerShutdownHook(graphDb);
     }
 
@@ -79,18 +65,6 @@ public class GraphDb {
                 resultIterator = graphDb.execute(queryHash, parameters).columnAs("t");
                 tag = null;
                 tag = resultIterator.next();
-                /*
-                //Insert relationship among tweets that have at least a hashtag in common
-                hashToTweetRelationships = null;
-                hashToTweetRelationships = tag.getRelationships(Direction.OUTGOING, RelType.TAGS);
-                if (hashToTweetRelationships != null) {
-                    for (Relationship relationship : hashToTweetRelationships) {
-                        temp = tweet.createRelationshipTo(relationship.getEndNode(), RelType.SAME_HASHTAG);
-                        temp.setProperty("hashtag", tag.getProperty("text"));
-                        relationship.delete();
-                    }
-                }
-                */
                 //finally insert relationship between current hashtag and current tweet (for each hashtag)
                 tag.createRelationshipTo(tweet, RelType.TAGS);
             }
@@ -122,5 +96,4 @@ public class GraphDb {
             }
         });
     }
-
 }
