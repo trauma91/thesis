@@ -39,9 +39,11 @@ public class TwitterListener {
 
             StatusListener listener = new StatusListener() {
                 public void onStatus(Status status) {
-                    //connection.saveTweet(status);
-                    graph.saveTweet(status);
-                    System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
+                    if (status.getHashtagEntities().length > 0) {
+						//connection.saveTweet(status);
+						graph.saveTweet(status);
+						System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
+					}
                 }
 
                 public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
