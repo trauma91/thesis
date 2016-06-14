@@ -25,7 +25,7 @@ public class GraphDb {
         Map<String, Object> parameters = new HashMap();
         //Query for saving new tweets
         String queryTweet = "MERGE (t:Tweet {id: {id}, author: {author}, timestamp: {timestamp}, " +
-                            "text: {text}, isRetweet: {isRetweet}, isAnswer: {isAnswer}})" +
+                            "text: {text}, isRetweet: {isRetweet}, isAnswer: {isAnswer}, hashtags: {hashtags}})" +
                             "return t";
         try {
             parameters.put("id", status.getId());
@@ -33,7 +33,11 @@ public class GraphDb {
             parameters.put("timestamp", status.getCreatedAt().getTime());
             parameters.put("text", status.getText());
             parameters.put("isRetweet", status.isRetweet());
-
+            String hashtags = "";
+            for (HashtagEntity hashtag : status.getHashtagEntities()) {
+                hashtags += hashtag.getText() + ",";
+            }
+            parameters.put("hashtags", hashtags.substring(0,hashtags.length() - 1));
             //Check if it's an answer: if it is then set the isAnswer field to the previous status
             //Otherwise set it to 0
             if (status.getInReplyToStatusId() != -1)

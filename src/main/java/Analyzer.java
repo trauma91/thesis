@@ -33,11 +33,13 @@ public class Analyzer {
 	public static ArrayList<String> getMostPopularHashtags() {
 		tx = graphDb.beginTx();
 		ArrayList<String> popHashtags = new ArrayList<String>();
+		Map<String, Object> parameters = new HashMap<String, Object>();
 		try {
 			String query = "MATCH (h:Hashtag) - [t:TAGS] -> (:Tweet) " +
 					"RETURN h, count(t) AS occ " +
-					"ORDER BY occ DESC LIMIT 10";
-			tweets = graphDb.execute(query).columnAs("h");
+					"ORDER BY occ DESC LIMIT {number}";
+			parameters.put("number", 10);
+			tweets = graphDb.execute(query, parameters).columnAs("h");
 			Node hashtag = null;
 			while (tweets.hasNext()) {
 				popHashtags.add((String) tweets.next().getProperty("text"));
@@ -51,7 +53,7 @@ public class Analyzer {
 	/*
 	 * Get hashtags that occurs together with the most popular one.
 	 */
-	public static Set<String> getRelHashtags(String popHash) {
+	public static Set<String> getRelToOneHashtag(String popHash) {
 		Set<String> relatedHashtags = new HashSet<String>();
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) RETURN DISTINCT h1";
@@ -68,7 +70,15 @@ public class Analyzer {
 		}
 	}
 
-	private static String getPrintableString(Set<String> relatedHashtags, ArrayList<String> currentHashtags) {
+	public static Set<String> getRelHashtags (ArrayList<String> popHashtags) {
+		Set<String> relatedHashtags = new HashSet<String>();
+		for (String hashtag: popHashtags) {
+			relatedHashtags.addAll(getRelToOneHashtag(hashtag));
+		}
+		return relatedHashtags;
+	}
+
+	private static String getPrintableString(Set<String> relatedHashtags, List<String> currentHashtags) {
 		String printable = "";
 		Iterator<String> iterator = relatedHashtags.iterator();
 		while (iterator.hasNext()){
@@ -93,24 +103,36 @@ public class Analyzer {
 			System.out.println(i + " - " + popHashs.get(i));
 		}
 		System.out.println(popHashs.size() + " - for specifying a different one");
+		System.out.println((popHashs.size() + 1) + " - for all of them");
 		Scanner scanner = new Scanner(System.in);
 		String index = scanner.next();
-		String selectedTag;
+		String selectedTag = "";
+		ArrayList<String> selected = new ArrayList<String>();
 		if (Integer.parseInt(index) == popHashs.size()){
 			System.out.println("Write your own hashtag");
 			selectedTag = scanner.next();
-			relatedHashtags = getRelHashtags(selectedTag);
+			selected.add(selectedTag);
+		} else if (Integer.parseInt(index) == popHashs.size() + 1) {
+			selected.addAll(popHashs);
+
 		} else {
 			selectedTag = popHashs.get(Integer.parseInt(index));
-			relatedHashtags = getRelHashtags(selectedTag);
+			selected.add(selectedTag);
 		}
+		relatedHashtags = getRelHashtags(selected);
+		relatedHashtags.addAll(selected);
+
 		Node tweet = null;
 		Node tag = null;
 		PrintWriter writer = null;
 		String init = " ";
 		try {
 			tx = graphDb.beginTx();
-			writer = new PrintWriter("results.csv");
+			if (selectedTag == "")
+				writer = new PrintWriter("all.csv");
+			else
+				writer = new PrintWriter(selectedTag + ".csv");
+
 			if (!relatedHashtags.isEmpty()) {
 				//Print the first line of the .csv file (hashtags list)
 				Iterator<String> iterator = relatedHashtags.iterator();
@@ -118,31 +140,28 @@ public class Analyzer {
 					init += "\'" + iterator.next() + "\',";
 				}
 				writer.println(init.substring(0,init.length()-1));
-				//Retrieve tweets containing hashtags that appear together with the most popular one.
-				String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) " +
-						"WITH collect(h1) as hashtags " +
-						"MATCH (h2:Hashtag) - [:TAGS] - (t:Tweet) " +
-						"WHERE h2 IN hashtags " +
-						"RETURN DISTINCT t";
+				for (String elem : selected) {
+					//Retrieve tweets containing hashtags that appear together with the most popular one.
+					String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) " +
+							"WITH collect(h1) as hashtags " +
+							"MATCH (h2:Hashtag) - [:TAGS] - (t:Tweet) " +
+							"WHERE h2 IN hashtags " +
+							"RETURN DISTINCT t";
 
-				parameters.put("text", selectedTag);
-				tweets = graphDb.execute(query, parameters).columnAs("t");
-				parameters.clear();
-
-				ArrayList<String> currentHashtags = new ArrayList<String>();
-				//For each tweet retrieve its hashtags -> hashtags set become a transaction
-				while (tweets.hasNext()) {
-					tweet = tweets.next();
-					query = "MATCH (t:Tweet {id: {id}}) <- [:TAGS] - (h:Hashtag) return h";
+					parameters.put("text", elem);
+					tweets = graphDb.execute(query, parameters).columnAs("t");
 					parameters.clear();
-					parameters.put("id", tweet.getProperty("id"));
-					hashtags = graphDb.execute(query, parameters).columnAs("h");
-					while (hashtags.hasNext()) {
-						currentHashtags.add((String) hashtags.next().getProperty("text"));
+
+					List<String> currentHashtags = new ArrayList<String>();
+					//For each tweet retrieve its hashtags -> hashtags set become a transaction
+					while (tweets.hasNext()) {
+						tweet = tweets.next();
+						currentHashtags = Arrays.asList(((String) tweet.getProperty("hashtags")).split("\\s*,\\s*"));
+
+						String printable = getPrintableString(relatedHashtags, currentHashtags);
+						writer.println(printable);
+						hashtags = null;
 					}
-					String printable = getPrintableString(relatedHashtags, currentHashtags);
-					writer.println(printable);
-					currentHashtags.clear();
 				}
 				tx.success();
 			}

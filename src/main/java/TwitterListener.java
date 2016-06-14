@@ -42,7 +42,7 @@ public class TwitterListener {
                     if (status.getHashtagEntities().length > 0) {
 						//connection.saveTweet(status);
 						graph.saveTweet(status);
-						System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
+                        System.out.println("@" + status.getUser().getScreenName() + " - " + status.getText());
 					}
                 }
 
