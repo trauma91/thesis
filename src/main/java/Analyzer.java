@@ -7,6 +7,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -17,6 +18,7 @@ public class Analyzer {
 	private static ResourceIterator<Node> tweets = null;
 	private static ResourceIterator<Node> hashtags = null;
 	private static Transaction tx = null;
+	private static Scanner scanner = new Scanner(System.in);
 
 	private static void registerShutdownHook(final GraphDatabaseService graphDb) {
 		Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -34,11 +36,13 @@ public class Analyzer {
 		tx = graphDb.beginTx();
 		ArrayList<String> popHashtags = new ArrayList<String>();
 		Map<String, Object> parameters = new HashMap<String, Object>();
+		System.out.println("How many hashtags?");
+		Integer number = Integer.parseInt(scanner.next());
 		try {
 			String query = "MATCH (h:Hashtag) - [t:TAGS] -> (:Tweet) " +
 					"RETURN h, count(t) AS occ " +
 					"ORDER BY occ DESC LIMIT {number}";
-			parameters.put("number", 10);
+			parameters.put("number", number);
 			tweets = graphDb.execute(query, parameters).columnAs("h");
 			Node hashtag = null;
 			while (tweets.hasNext()) {
@@ -78,36 +82,17 @@ public class Analyzer {
 		return relatedHashtags;
 	}
 
-	private static String getPrintableString(Set<String> relatedHashtags, List<String> currentHashtags) {
-		String printable = "";
-		Iterator<String> iterator = relatedHashtags.iterator();
-		while (iterator.hasNext()){
-			if (currentHashtags.contains(iterator.next())) {
-				printable += "t,";
-			} else {
-				printable += "?,";
-			}
-		}
-		return printable.substring(0,printable.length()-1);
-	}
-
-	public static void main(String[] args) {
-		graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File("data"));
-		registerShutdownHook(graphDb);
-
-		Map<String, Object> parameters = new HashMap<String, Object>();
-		ArrayList<String> popHashs = getMostPopularHashtags();
-		Set<String> relatedHashtags = new HashSet<String>();
+	private static ArrayList<String> getSelectedHashtag (ArrayList<String> popHashs) {
+		String selectedTag = "";
 		System.out.println("Please, select one");
 		for (int i = 0; i < popHashs.size(); i++){
 			System.out.println(i + " - " + popHashs.get(i));
 		}
 		System.out.println(popHashs.size() + " - for specifying a different one");
 		System.out.println((popHashs.size() + 1) + " - for all of them");
-		Scanner scanner = new Scanner(System.in);
 		String index = scanner.next();
-		String selectedTag = "";
 		ArrayList<String> selected = new ArrayList<String>();
+
 		if (Integer.parseInt(index) == popHashs.size()){
 			System.out.println("Write your own hashtag");
 			selectedTag = scanner.next();
@@ -119,28 +104,34 @@ public class Analyzer {
 			selectedTag = popHashs.get(Integer.parseInt(index));
 			selected.add(selectedTag);
 		}
-		relatedHashtags = getRelHashtags(selected);
-		relatedHashtags.addAll(selected);
+		return selected;
+	}
+
+	public static void main(String[] args) {
+		graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File("data"));
+		registerShutdownHook(graphDb);
+
+		Map<String, Object> parameters = new HashMap<String, Object>();
+		ArrayList<String> popHashs = getMostPopularHashtags();
+		Set<String> relatedHashtags = new HashSet<String>();
+
+		ArrayList<String> selectedHashtags = getSelectedHashtag(popHashs);
+		relatedHashtags = getRelHashtags(selectedHashtags);
+		relatedHashtags.addAll(selectedHashtags);
 
 		Node tweet = null;
 		Node tag = null;
-		PrintWriter writer = null;
-		String init = " ";
+		String fileName = "";
 		try {
 			tx = graphDb.beginTx();
-			if (selectedTag == "")
-				writer = new PrintWriter("all.csv");
+			if (selectedHashtags.size() > 1 )
+				fileName = "all";
 			else
-				writer = new PrintWriter(selectedTag + ".csv");
+				fileName = selectedHashtags.get(0);
 
 			if (!relatedHashtags.isEmpty()) {
-				//Print the first line of the .csv file (hashtags list)
-				Iterator<String> iterator = relatedHashtags.iterator();
-				while (iterator.hasNext()){
-					init += "\'" + iterator.next() + "\',";
-				}
-				writer.println(init.substring(0,init.length()-1));
-				for (String elem : selected) {
+				ArrayList<String> transactions = new ArrayList<String>();
+				for (String elem : selectedHashtags) {
 					//Retrieve tweets containing hashtags that appear together with the most popular one.
 					String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) " +
 							"WITH collect(h1) as hashtags " +
@@ -152,24 +143,19 @@ public class Analyzer {
 					tweets = graphDb.execute(query, parameters).columnAs("t");
 					parameters.clear();
 
-					List<String> currentHashtags = new ArrayList<String>();
+					String currentHashtags;
 					//For each tweet retrieve its hashtags -> hashtags set become a transaction
 					while (tweets.hasNext()) {
 						tweet = tweets.next();
-						currentHashtags = Arrays.asList(((String) tweet.getProperty("hashtags")).split("\\s*,\\s*"));
-
-						String printable = getPrintableString(relatedHashtags, currentHashtags);
-						writer.println(printable);
+						currentHashtags = (String) tweet.getProperty("hashtags");
+						transactions.add(currentHashtags);
 						hashtags = null;
 					}
 				}
+				ExportToFile.getFiles(fileName,relatedHashtags,transactions);
 				tx.success();
 			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
 		} finally {
-			writer.flush();
-			writer.close();
 			tx.close();
 		}
 	}
