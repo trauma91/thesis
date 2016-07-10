@@ -19,4 +19,6 @@ target/
 data/
 
 # transactions
+results/
 *.csv
+*.txt
