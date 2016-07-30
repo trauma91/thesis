@@ -3,7 +3,6 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-
 import java.io.File;
 import java.util.*;
 
@@ -57,11 +56,18 @@ public class Analyzer {
 	public static Set<String> getRelToOneHashtag(String popHash) {
 		Set<String> relatedHashtags = new HashSet<String>();
 		Map<String, Object> parameters = new HashMap<String, Object>();
-		String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) RETURN DISTINCT h1";
+		String getTotHash = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) RETURN count(h1) as" +
+				" totHash";
+		String getRelHashtags = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) WHERE (a.count*1000)/{count} > 1 RETURN DISTINCT h1";
+		Long totHash;
 		tx = graphDb.beginTx();
 		try {
 			parameters.put("text", popHash);
-			hashtags = graphDb.execute(query, parameters).columnAs("h1");
+			totHash = (Long) graphDb.execute(getTotHash, parameters).columnAs("totHash").next();
+			parameters.clear();
+			parameters.put("text", popHash);
+			parameters.put("count", totHash);
+			hashtags = graphDb.execute(getRelHashtags, parameters).columnAs("h1");
 			while (hashtags.hasNext()) {
 				relatedHashtags.add((String) hashtags.next().getProperty("text"));
 			}
