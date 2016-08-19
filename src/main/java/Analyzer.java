@@ -36,8 +36,9 @@ public class Analyzer {
 		Integer number = Integer.parseInt(scanner.next());
 		try {
 			String query = "MATCH (h:Hashtag) - [t:TAGS] -> (:Tweet) " +
-					"RETURN h, count(t) AS occ " +
-					"ORDER BY occ DESC LIMIT {number}";
+					       "RETURN h, count(t) AS occ " +
+						   "ORDER BY occ DESC LIMIT {number}";
+
 			parameters.put("number", number);
 			tweets = graphDb.execute(query, parameters).columnAs("h");
 			Node hashtag = null;
@@ -56,17 +57,12 @@ public class Analyzer {
 	public static Set<String> getRelToOneHashtag(String popHash) {
 		Set<String> relatedHashtags = new HashSet<String>();
 		Map<String, Object> parameters = new HashMap<String, Object>();
-		String getTotHash = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) RETURN count(h1) as" +
-				" totHash";
-		String getRelHashtags = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) WHERE (a.count*1000)/{count} > 1 RETURN DISTINCT h1";
+		String getRelHashtags = "MATCH (:Hashtag {text: {text}}) - [t:TAGS] -> (:Tweet) WITH count(t) as totHash " +
+								"MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) WHERE (a.count*1000)/totHash > 1 RETURN DISTINCT h1";
 		Long totHash;
 		tx = graphDb.beginTx();
 		try {
 			parameters.put("text", popHash);
-			totHash = (Long) graphDb.execute(getTotHash, parameters).columnAs("totHash").next();
-			parameters.clear();
-			parameters.put("text", popHash);
-			parameters.put("count", totHash);
 			hashtags = graphDb.execute(getRelHashtags, parameters).columnAs("h1");
 			while (hashtags.hasNext()) {
 				relatedHashtags.add((String) hashtags.next().getProperty("text"));
@@ -133,14 +129,10 @@ public class Analyzer {
 				fileName = selectedHashtags.get(0);
 
 			if (!relatedHashtags.isEmpty()) {
-				ArrayList<String> transactions = new ArrayList<String>();
-				for (String elem : selectedHashtags) {
+				HashMap<Long, String> transactions = new HashMap<Long, String>();
+				for (String elem : relatedHashtags) {
 					//Retrieve tweets containing hashtags that appear together with the most popular one.
-					String query = "MATCH (:Hashtag {text: {text}}) - [a:APPEAR_TOGETHER] - (h1:Hashtag) " +
-							"WITH collect(h1) as hashtags " +
-							"MATCH (h2:Hashtag) - [:TAGS] - (t:Tweet) " +
-							"WHERE h2 IN hashtags " +
-							"RETURN DISTINCT t";
+					String query = "MATCH (h1:Hashtag {text: {text}}) - [:TAGS] -> (t:Tweet) RETURN DISTINCT t";
 
 					parameters.put("text", elem);
 					tweets = graphDb.execute(query, parameters).columnAs("t");
@@ -151,7 +143,7 @@ public class Analyzer {
 					while (tweets.hasNext()) {
 						tweet = tweets.next();
 						currentHashtags = (String) tweet.getProperty("hashtags");
-						transactions.add(currentHashtags);
+						transactions.put((long) tweet.getId(), currentHashtags);
 						hashtags = null;
 					}
 				}

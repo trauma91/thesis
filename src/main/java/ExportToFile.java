@@ -8,12 +8,12 @@ import java.util.*;
  */
 public class ExportToFile {
 
-	public static void getFiles (String fileName, Set<String> relatedHashtags, ArrayList<String> transactions) {
+	public static void getFiles (String fileName, Set<String> relatedHashtags, HashMap<Long, String> transactions) {
 		printToCsv(fileName, relatedHashtags, transactions);
-		printToText(fileName,transactions);
+		//printToText(fileName,transactions);
 	}
 
-	private static void printToCsv(String fileName, Set<String> relatedHashtags, ArrayList<String> transactions){
+	private static void printToCsv(String fileName, Set<String> relatedHashtags, HashMap<Long, String> transactions){
 		File file = new File("results/" + fileName + ".csv");
 		file.getParentFile().mkdirs();
 		PrintWriter writer = null;
@@ -26,9 +26,11 @@ public class ExportToFile {
 			}
 			writer.println(init.substring(0,init.length()-1));
 
-			iterator = transactions.iterator();
-			while (iterator.hasNext()){
-				writer.println(getPrintableString(relatedHashtags, iterator.next()));
+			Iterator it = transactions.entrySet().iterator();
+			while (it.hasNext()){
+				Map.Entry pair = (Map.Entry) it.next();
+				writer.println(getPrintableString(relatedHashtags, (String) pair.getValue()));
+				it.remove();
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -37,15 +39,17 @@ public class ExportToFile {
 			writer.close();
 		}
 	}
-	private static void printToText (String fileName, ArrayList<String> transactions) {
+	private static void printToText (String fileName, HashMap<Long, String> transactions) {
 		File file = new File("results/" + fileName + ".txt");
 		file.getParentFile().mkdirs();
 		PrintWriter writer = null;
 		try {
 			writer = new PrintWriter(file);
-			Iterator<String> iterator = transactions.iterator();
+			Iterator iterator = transactions.entrySet().iterator();
 			while(iterator.hasNext()) {
-				writer.println(iterator.next());
+				Map.Entry pair = (Map.Entry) iterator.next();
+				writer.println(pair.getValue());
+				iterator.remove();
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
