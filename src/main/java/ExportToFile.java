@@ -63,7 +63,7 @@ public class ExportToFile {
 		List<String> currentHashtagList = Arrays.asList(currentHashtags.split(","));
 		Iterator<String> iterator = relatedHashtags.iterator();
 		while (iterator.hasNext()){
-			if (currentHashtags.contains(iterator.next())) {
+			if (currentHashtagList.contains(iterator.next())) {
 				printable += "t,";
 			} else {
 				printable += "?,";
