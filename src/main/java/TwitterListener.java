@@ -34,7 +34,7 @@ public class TwitterListener {
             }
             TwitterStream twitterStream;
             twitterStream = new TwitterStreamFactory(authentication().build()).getInstance();
-            final DbConnect connection = new DbConnect(DB_USER, DB_PASSWORD);
+            //final DbConnect connection = new DbConnect(DB_USER, DB_PASSWORD);
             final GraphDb graph = new GraphDb();
 
             StatusListener listener = new StatusListener() {
