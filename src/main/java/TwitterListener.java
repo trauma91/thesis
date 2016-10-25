@@ -8,8 +8,8 @@ import twitter4j.TwitterStreamFactory;
 import twitter4j.conf.ConfigurationBuilder;
 
 public class TwitterListener {
-    private static final String CONSUMER_KEY = "gvT4qnVYIh9DRxl5b8SCnkljA";
-    private static final String CONSUMER_SECRET = "DdY96PO7FEUHJfr472PxxlgjbxFbahDKC0PKIuRmT7FKwpDplB";
+    private static final String CONSUMER_KEY = "iM4G2VTlLAC8mx0ZcrsnexEsL";
+    private static final String CONSUMER_SECRET = "F4fwihhmjGy4m8g9KzXP0evjB5DFHeAmlfVtwKE9OQR1OrTMWK";
     private static final String ACCESS_TOKEN = "435853131-QUR1h5EcaXUJbP7cjqEhLiQWH3boloHt1BXLhUgs";
     private static final String ACCESS_TOKEN_SECRET = "huoP2IDyWu90HPHT0alcZZNS4Jv6oRbQXWTjzGaI9IOUQ";
 
